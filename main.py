@@ -26,13 +26,17 @@ TOKEN = os.getenv("BOT_TOKEN")
 dp = Dispatcher()
 
 PGPASSWORD = os.getenv("PGPASSWORD")
+PGDATABASE = os.getenv("PGDATABASE")
+PGUSER = os.getenv("PGUSER")
+PGHOST = os.getenv("PGHOST")
+PGPORT = os.getenv("PGPORT")
 
 conn = psycopg2.connect(
-    host="db",
-    database="sqlbot",
-    user="postgres",
+    host=PGHOST,
+    database=PGDATABASE,
+    user=PGUSER,
     password=PGPASSWORD,
-    port=5432
+    port=PGPORT
 )
 
 cur = conn.cursor()
@@ -51,6 +55,7 @@ async def command_start_handler(message: Message):
 async def echo_handler(message: Message):
     answer = await client.send_message(message.text)
     result_json = json.loads(answer)
+    await message.answer(answer)
     sql, params = await json_to_sql(result_json)
     cur.execute(sql, params)
     await message.answer(str(cur.fetchone()[0]))
