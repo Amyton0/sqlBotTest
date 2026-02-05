@@ -46,11 +46,6 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 
 
-@dp.message(CommandStart())
-async def command_start_handler(message: Message):
-    await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!")
-
-
 @dp.message()
 async def echo_handler(message: Message):
     answer = await client.send_message(message.text)
