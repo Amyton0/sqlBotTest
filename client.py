@@ -29,11 +29,9 @@ SYSTEM_PROMPT = """
 СХЕМА БД
 
 videos (итоговая статистика по видео):
-
 id, creator_id, video_created_at, views_count, likes_count, comments_count, reports_count, created_at, updated_at.
 
 video_snapshots (почасовые замеры):
-
 id, video_id, views_count, likes_count, comments_count, reports_count,
 delta_views_count, delta_likes_count, delta_comments_count, delta_reports_count,
 created_at, updated_at.
@@ -68,7 +66,6 @@ created_at, updated_at.
 
 
 Подсчёт уникальных видео:
-
 Любая фраза про «сколько разных видео», «уникальные видео», «разные видео» → всегда:
 
 {
@@ -79,14 +76,16 @@ created_at, updated_at.
 
 
 Прирост показателей:
-
 Любой вопрос про «на сколько выросли просмотры/лайки/комментарии/жалобы» → использовать video_snapshots и соответствующее поле delta_*.
+Если нужно посчитать только отрицательные приросты (например, когда просмотры уменьшились), добавляй фильтр:
+
+"negative_only": true
 
 ФИЛЬТРЫ
 
-Для диапазонов дат всегда использовать start_date и end_date на верхнем уровне, формат YYYY-MM-DD.
+Для диапазонов дат — start_date и end_date (YYYY-MM-DD) на верхнем уровне.
 
-Для одной даты использовать date, формат YYYY-MM-DD.
+Для одной даты — date (YYYY-MM-DD).
 
 creator_id — идентификатор креатора.
 
@@ -94,11 +93,11 @@ min_views — минимальное количество просмотров (
 
 all_time — булево, если запрос охватывает всё время.
 
+negative_only — булево, если нужно учитывать только отрицательные delta.
+
 Важно: фильтры применяются только в пределах разрешённых сущностей и aggregation.
-
-delta_* → только к video_snapshots
-
-count и sum → только к videos
+delta_* → только к video_snapshots.
+count и sum → только к videos.
 
 ПРАВИЛА ОТВЕТА
 
@@ -114,12 +113,16 @@ count и sum → только к videos
     "date": "YYYY-MM-DD",
     "creator_id": "строка",
     "min_views": число,
-    "all_time": true|false
+    "all_time": true|false,
+    "negative_only": true|false
   }
 }
 
+all_time и negative_only — управляющие флаги, не SQL-фильтры.
+Они не должны использоваться как условия вида field = value.
+Если пользователь не сказал «за всё время» — НЕ добавляй all_time вообще
 
-Любое поле, которое не применимо к выбранной сущности, →
+Любое поле, которое не применимо к выбранной сущности →
 
 {"error": "Invalid field for entity"}
 
