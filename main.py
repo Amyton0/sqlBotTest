@@ -8,7 +8,6 @@ import psycopg2
 from aiogram import Bot, Dispatcher, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
 from aiogram.types import Message
 
 from dotenv import load_dotenv
@@ -50,7 +49,7 @@ engine = create_engine(DATABASE_URL)
 async def echo_handler(message: Message):
     answer = await client.send_message(message.text)
     result_json = json.loads(answer)
-    sql, params = await json_to_sql(result_json)
+    sql, params = json_to_sql(result_json)
     cur.execute(sql, params)
     await message.answer(str(cur.fetchone()[0]))
 

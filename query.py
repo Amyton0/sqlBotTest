@@ -1,77 +1,68 @@
-from typing import Dict, Tuple, Any
+import asyncio
+from typing import Dict, Any, Tuple, List
 
-ENTITY_FIELDS = {
-    "videos": {"id", "views_count", "likes_count", "comments_count", "reports_count"},
-    "video_snapshots": {
-        "id", "video_id", "views_count", "likes_count", "comments_count",
-        "reports_count", "delta_views_count", "delta_likes_count",
-        "delta_comments_count", "delta_reports_count"
-    }
+ALLOWED_ENTITIES = {"videos", "video_snapshots"}
+ALLOWED_FIELDS = {
+    "id", "creator_id", "views_count", "likes_count", "comments_count", "reports_count",
+    "delta_views_count", "delta_likes_count", "delta_comments_count", "delta_reports_count"
 }
-
-FILTERS_BY_ENTITY = {
-    "videos": {"start_date", "end_date", "date", "creator_id", "min_views", "all_time"},
-    "video_snapshots": {"start_date", "end_date", "date", "all_time"}
-}
+ALLOWED_AGGR = {"count", "sum", "avg", "max", "min"}
 
 
-async def json_to_sql(query: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
-    entity = query.get("entity")
-    field = query.get("field")
-    aggregation = query.get("aggregation")
-    filters = query.get("filters", {})
+def json_to_sql(data: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    if "error" in data:
+        raise ValueError(f"LLM returned error: {data['error']}")
 
-    if entity not in ENTITY_FIELDS:
+    entity = data.get("entity")
+    aggregation = data.get("aggregation", "count").lower()
+    field = data.get("field", "id")
+    filters = data.get("filters", {})
+
+    if entity not in ALLOWED_ENTITIES:
         raise ValueError(f"Invalid entity: {entity}")
-    if field not in ENTITY_FIELDS[entity]:
-        raise ValueError("Invalid field for entity")
-
-    sql_parts = []
-    params = {}
-
-    table = entity
+    if aggregation not in ALLOWED_AGGR:
+        raise ValueError(f"Invalid aggregation: {aggregation}")
+    if field not in ALLOWED_FIELDS and field != "*":
+        raise ValueError(f"Invalid field: {field}")
 
     if aggregation == "count":
-        sql_parts.append(f"SELECT COUNT({field}) FROM {table}")
-    elif aggregation == "sum":
-        sql_parts.append(f"SELECT SUM({field}) FROM {table}")
-    elif aggregation == "delta":
-        sql_parts.append(f"SELECT SUM({field}) FROM {table}")
+        sql_select = f"SELECT COUNT({field})"
     else:
-        raise ValueError(f"Unknown aggregation: {aggregation}")
+        sql_select = f"SELECT {aggregation.upper()}({field})"
+
+    sql_from = f"FROM {entity}"
 
     where_clauses = []
-    allowed_filters = FILTERS_BY_ENTITY[entity]
+    params = {}
 
-    for key, value in filters.items():
-        if key not in allowed_filters or value is None:
-            continue
+    date_column = "created_at" if entity == "video_snapshots" else "video_created_at"
+    filters = data.get("filters", {})
 
-        if key == "start_date":
-            where_clauses.append("created_at >= %(start_date)s")
-            params["start_date"] = value
-        elif key == "end_date":
-            where_clauses.append("created_at <= %(end_date)s")
-            params["end_date"] = value
-        elif key == "date":
-            where_clauses.append("created_at::date = %(date)s")
-            params["date"] = value
-        elif key == "all_time" and value:
-            continue
-        elif key == "min_views":
-            if field == "id" and aggregation == "count":
-                where_clauses.append("views_count >= %(min_views)s")
-                params["min_views"] = value
+    if not filters.get("all_time"):
+        if filters.get("date"):
+            where_clauses.append(f"DATE({date_column}) = %(date)s")
+            params["date"] = filters["date"]
+        elif filters.get("start_date") and filters.get("end_date"):
+            where_clauses.append(f"DATE({date_column}) BETWEEN %(start_date)s AND %(end_date)s")
+            params["start_date"] = filters["start_date"]
+            params["end_date"] = filters["end_date"]
+
+    if filters.get("creator_id"):
+        where_clauses.append("creator_id = %(creator_id)s")
+        params["creator_id"] = str(filters["creator_id"])
+
+    if filters.get("min_views"):
+        where_clauses.append("views_count >= %(min_views)s")
+        params["min_views"] = int(filters["min_views"])
+
+    if filters.get("negative_only"):
+        if entity == "video_snapshots":
+            target_filter_field = field if "delta" in str(field) else "delta_views_count"
+            where_clauses.append(f"{target_filter_field} < 0")
         else:
-            where_clauses.append(f"{key} = %({key})s")
-            params[key] = value
+            where_clauses.append("views_count < 0")
 
-    if aggregation == "delta" and field.startswith("delta_") and filters.get("negative_only"):
-        where_clauses.append(f"{field} < 0")
-        params.pop("negative_only", None)
+    where_str = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+    query = f"SELECT {aggregation.upper()}({field}) FROM {entity}{where_str};"
 
-    if where_clauses:
-        sql_parts.append("WHERE " + " AND ".join(where_clauses))
-
-    sql = " ".join(sql_parts)
-    return sql, params
+    return query, params
