@@ -12,8 +12,11 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
 
 from client import Client
+from data import set_data
+from models import Base
 from query import json_to_sql
 
 load_dotenv()
@@ -21,17 +24,19 @@ load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 dp = Dispatcher()
 
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 
 conn = psycopg2.connect(
-    host="localhost",
+    host="db",
     database="sqlbot",
     user="postgres",
-    password=DB_PASSWORD,
+    password=POSTGRES_PASSWORD,
     port=5432
 )
 
 cur = conn.cursor()
+
+engine = create_engine(f'postgresql://postgres:{POSTGRES_PASSWORD}@db/sqlbot')
 
 
 @dp.message(CommandStart())
@@ -56,5 +61,7 @@ async def main() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    Base.metadata.create_all(engine)
+    set_data()
     client = Client()
     asyncio.run(main())
