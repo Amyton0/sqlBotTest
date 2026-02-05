@@ -12,11 +12,12 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, select
+from sqlalchemy.orm import Session
 
 from client import Client
 from data import set_data
-from models import Base
+from models import Base, Video
 from query import json_to_sql
 
 load_dotenv()
@@ -24,19 +25,21 @@ load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 dp = Dispatcher()
 
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+PGPASSWORD = os.getenv("PGPASSWORD")
 
 conn = psycopg2.connect(
     host="db",
     database="sqlbot",
     user="postgres",
-    password=POSTGRES_PASSWORD,
+    password=PGPASSWORD,
     port=5432
 )
 
 cur = conn.cursor()
 
-engine = create_engine(f'postgresql://postgres:{POSTGRES_PASSWORD}@db/sqlbot')
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+engine = create_engine(DATABASE_URL)
 
 
 @dp.message(CommandStart())
@@ -61,7 +64,14 @@ async def main() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+
     Base.metadata.create_all(engine)
-    set_data()
+
+    with Session(engine) as session:
+        count = session.execute(select(Video).limit(1)).scalar()
+        if count is None:
+            set_data()
     client = Client()
     asyncio.run(main())
