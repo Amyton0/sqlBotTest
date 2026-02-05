@@ -55,7 +55,6 @@ async def command_start_handler(message: Message):
 async def echo_handler(message: Message):
     answer = await client.send_message(message.text)
     result_json = json.loads(answer)
-    await message.answer(answer)
     sql, params = await json_to_sql(result_json)
     cur.execute(sql, params)
     await message.answer(str(cur.fetchone()[0]))
