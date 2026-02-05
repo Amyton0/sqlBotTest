@@ -7,9 +7,9 @@ from models.base import Base
 
 load_dotenv()
 
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(f'postgresql://postgres:{POSTGRES_PASSWORD}@db/sqlbot')
+engine = create_engine(DATABASE_URL)
 
 print(f"Модели в Base.metadata: {list(Base.metadata.tables.keys())}")
 

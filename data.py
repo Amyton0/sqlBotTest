@@ -9,10 +9,9 @@ from models.video_snapshot import VideoSnapshot
 
 load_dotenv()
 
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(f'postgresql://postgres:{POSTGRES_PASSWORD}@db/sqlbot')
-
+engine = create_engine(DATABASE_URL)
 
 def set_data():
     with open('videos.json') as f:
