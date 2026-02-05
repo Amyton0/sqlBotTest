@@ -164,8 +164,15 @@ cd <repo_name>
 
 2. Создать .env с переменными:
 ```
-TELEGRAM_TOKEN=<ваш_токен_бота>
+OPENROUTER_API_KEY=<ключ для OpenRouter>
+OPENROUTER_API_BASE=https://openrouter.ai/api/v1
 DATABASE_URL=postgresql://user:password@db:5432/dbname
+BOT_TOKEN=<ваш_токен_бота>
+PGDATABASE=...
+PGUSER=...
+PGPASSWORD=...
+PGHOST=...
+PGPORT=...
 ```
 Токен бота можно получить, создав бота в боте BotFather в телеграме.
 
