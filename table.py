@@ -1,8 +1,15 @@
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
 from models.base import Base
 
-engine = create_engine('postgresql://postgres:postgres@localhost/sqlbot', echo=True)
+load_dotenv()
+
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+engine = create_engine(f'postgresql://postgres:{DB_PASSWORD}@localhost/sqlbot')
 
 try:
     with engine.connect() as conn:

@@ -1,12 +1,16 @@
 import json
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from datetime import datetime
+import os
+
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 from models.video import Video
 from models.video_snapshot import VideoSnapshot
+load_dotenv()
 
-engine = create_engine('postgresql://postgres:postgres@localhost/sqlbot', echo=True)
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+engine = create_engine(f'postgresql://postgres:{DB_PASSWORD}@localhost/sqlbot')
 
 with open('videos.json') as f:
     json_data = f.read()
