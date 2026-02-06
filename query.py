@@ -8,55 +8,51 @@ async def json_to_sql(data: dict):
     where_clauses = []
     params = {}
 
-    if entity == "video_snapshots":
-        date_column = "created_at"
-    else:
-        date_column = "video_created_at"
+    date_column = "created_at" if entity == "video_snapshots" else "video_created_at"
 
-    if aggregation == "COUNT":
-        if is_distinct:
-            target_field = f"DISTINCT {field}"
+    if aggregation == "COUNT" and is_distinct:
+        if "date" in field or "created_at" in field:
+            target_field = f"DISTINCT DATE({date_column})"
         else:
-            target_field = "*"
+            target_field = f"DISTINCT {field}"
+    elif aggregation == "COUNT":
+        target_field = "*"
     else:
         target_field = field
 
     if not filters.get("all_time"):
         start = filters.get("start_date")
         end = filters.get("end_date")
-        specific_date = filters.get("date")
 
         if start and end:
-            if "00:00:00" in str(start) and ("23:59:59" in str(end) or "00:00:00" in str(end)):
-                where_clauses.append(f"DATE({date_column}) BETWEEN %(start_date)s AND %(end_date)s")
-            elif ":" in str(start):
-                where_clauses.append(f"{date_column} >= %(start_date)s AND {date_column} <= %(end_date)s")
+            if ":" in str(start) or ":" in str(end):
+                where_clauses.append(f"{date_column} BETWEEN %(start_date)s AND %(end_date)s")
             else:
-                where_clauses.append(f"DATE({date_column}) BETWEEN %(start_date)s AND %(end_date)s")
+                where_clauses.append(f"DATE({date_column}) BETWEEN DATE(%(start_date)s) AND DATE(%(end_date)s)")
 
             params["start_date"] = start
             params["end_date"] = end
 
-        elif specific_date:
-            where_clauses.append(f"DATE({date_column}) = %(date)s")
-            params["date"] = specific_date
-
     if filters.get("creator_id"):
+        c_id = filters["creator_id"]
         if entity == "video_snapshots":
             where_clauses.append("video_id IN (SELECT id FROM videos WHERE creator_id = %(creator_id)s)")
         else:
             where_clauses.append("creator_id = %(creator_id)s")
-        params["creator_id"] = str(filters["creator_id"])
-
+        params["creator_id"] = str(c_id)
     if filters.get("min_views"):
+        m_views = filters["min_views"]
         if entity == "videos":
-            where_clauses.append("views_count >= %(min_views)s")
-        else:
-            where_clauses.append("video_id IN (SELECT id FROM videos WHERE views_count >= %(min_views)s)")
-        params["min_views"] = int(filters["min_views"])
+            where_clauses.append("views_count > %(min_views)s")
+        elif entity == "video_snapshots":
+            where_clauses.append("views_count > %(min_views)s")
 
-    if filters.get("negative_only"):
-        where_clauses.append("delta_views_count < 0")
+        params["min_views"] = int(m_views)
+    if filters.get("negative_only") is True:
+        if entity == "video_snapshots":
+            where_clauses.append("delta_views_count < 0")
+        else:
+            where_clauses.append("views_count < 0")
 
     where_str = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
     query = f"SELECT {aggregation}({target_field}) FROM {entity}{where_str};"
