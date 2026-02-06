@@ -47,11 +47,15 @@ engine = create_engine(DATABASE_URL)
 
 @dp.message()
 async def echo_handler(message: Message):
-    answer = await client.send_message(message.text)
-    result_json = json.loads(answer)
-    sql, params = json_to_sql(result_json)
-    cur.execute(sql, params)
-    await message.answer(str(cur.fetchone()[0]))
+    try:
+        answer = await client.send_message(message.text)
+        result_json = json.loads(answer)
+        await message.answer(f"<pre>{answer}</pre>", parse_mode="HTML")
+        sql, params = json_to_sql(result_json)
+        cur.execute(sql, params)
+        await message.answer(str(cur.fetchone()[0]))
+    except Exception as e:
+        await message.answer(str(e))
 
 
 async def main() -> None:
